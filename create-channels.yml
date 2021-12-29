@@ -1,0 +1,87 @@
+config:
+  target: 'http://40.81.153.83:8081/rest'
+#  target: 'https://scc52919.azurewebsites.net/rest'
+#  target: 'http://localhost:8080/scc2122-backend/rest'
+  http:
+    timeout: 10
+  plugins:
+    metrics-by-endpoint: {}
+  processor: "./test-utils.js"
+  variables:
+     metricsProcessEndpoint : "myProcessEndpoint"  # function used to aggregate endpoints for statistics
+  phases:
+  - name: "Create channels"    # Create channels
+    duration: 1
+    arrivalCount: 1
+
+scenarios:
+  - name: 'Create channels'
+    weight: 1
+    flow:
+      - loop:                            # let's create 10 public channels - loop ... count
+        - function: "selectUserSkewed"
+        - post:                          # First: login as a user
+            url: "/login"
+            headers:
+              Content-Type: application/json
+            json:
+              id: "{{ user }}"
+              password: "{{ pwd }}"
+        - function: "genNewChannel"
+        - post:                          # Create channel
+            url: "/channels"
+            headers:
+              Content-Type: application/json
+              Accept: application/json
+            json:
+              name: "{{ channelName }}"
+              owner: "{{ user }}"
+              priv: false
+              members: []
+            capture:                     # Capturing channel id
+              - json: $.channelID
+                as: "channelId"
+        - loop:                          # Let's add 20 users to the channel
+          - function: "selectUserSkewed"
+          - post:                         
+              url: "/login"
+              headers:
+                Content-Type: application/json
+              json:
+                id: "{{ user }}"
+                password: "{{ pwd }}"
+          - post:                          # Subscribe     
+              url: "/users/{{ user }}/subscribe/{{ channelId }}"
+          count: 20
+        count: 10   
+      - loop:                            # let's create 45 private channels - loop ... count
+        - function: "selectUserSkewed"
+        - post:                          # First: login as a user
+            url: "/login"
+            headers:
+              Content-Type: application/json
+            json:
+              id: "{{ user }}"
+              password: "{{ pwd }}"
+        - function: "genNewChannel"
+        - post:                          # Create channel
+            url: "/channels"
+            headers:
+              Content-Type: application/json
+              Accept: application/json
+            json:
+              name: "{{ channelName }}"
+              owner: "{{ user }}"
+              priv: true
+              members: []
+            capture:                     # Capturing channel id
+              - json: $.channelID
+                as: "channelId"
+        - loop:                          # Let's add 10 users to the channel
+          - function: "selectUserSkewed"
+          - post:                          # Add user to private channel   
+              url: "/channels/{{ channelId }}/add/{{ user }}"
+          count: 10
+        count: 25
+
+

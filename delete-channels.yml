@@ -1,0 +1,46 @@
+config:
+  target: 'http://20.90.233.240:8081/rest'
+#  target: 'https://scc52919.azurewebsites.net/rest'
+#  target: 'http://localhost:8080/scc2122-backend/rest'
+  http:
+    timeout: 10
+  plugins:
+    metrics-by-endpoint: {}
+  processor: "./test-utils.js"
+  variables:
+     metricsProcessEndpoint : "myProcessEndpoint"  # function used to aggregate endpoints for statistics
+  phases:
+  - name: "Delete Channels"
+    duration: 1
+    arrivalCount: 1
+
+
+scenarios:
+  - name: 'Delete Channels'
+    weight: 1
+    flow:
+      - loop:
+          - function: "selectUserSkewed"
+          - post:                          # First: login as a user
+              url: "/login"
+              headers:
+                Content-Type: application/json
+              json:
+                id: "{{ user }}"
+                password: "{{ pwd }}"
+          - get:                          # Get user channels
+              url: "/users/{{ user }}/channels"
+              headers:
+                Accept: application/json
+              capture: 
+                json: "$"
+                as: "channelLst"
+          - function: "selectChannelFromChannelLstSkewed"   # Select channel to delete
+          - delete:                         
+              url: "/channels/{{ channelId }}"
+              ifTrue: "channelId"
+
+        count: 10
+      
+      
+      
